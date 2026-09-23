@@ -1,7 +1,5 @@
 // ================================================================
-// PROYECTO UNIFICADO IC2001
 // Sistema de Gestion de Produccion Cientifica y Metricas Academicas
-// Archivo unico: proyecto.cpp
 // ================================================================
 
 #include <iostream>
