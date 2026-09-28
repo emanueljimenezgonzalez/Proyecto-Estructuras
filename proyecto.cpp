@@ -1649,6 +1649,14 @@ bool ListaPublicaciones::esTipoValido(const std::string& t) {
             t == "Artículo" || t == "articulo" || t == "libro" || t == "conferencia");
 }
 
+// Devuelve el tipo con el formato oficial, o "" si no es valido
+static std::string normalizarTipo(const std::string& t) {
+    if (t == "Articulo" || t == "Artículo" || t == "articulo" || t == "artículo") return "Articulo";
+    if (t == "Libro" || t == "libro") return "Libro";
+    if (t == "Conferencia" || t == "conferencia") return "Conferencia";
+    return "";
+}
+
 bool ListaPublicaciones::insertarOrdenadoPorAnio(const std::string& id, const std::string& tit, int anio,
                                                  const std::string& tipo, int citas, const std::string& doi,
                                                  NodoInvestigador* inv, NodoRevista* rev, NodoProyecto* proy) {
@@ -1666,10 +1674,11 @@ bool ListaPublicaciones::insertarOrdenadoPorAnio(const std::string& id, const st
         return false;
     }
 
-    std::string tipoNormalizado = tipo;
-    if (tipo == "Artículo" || tipo == "articulo") tipoNormalizado = "Articulo";
-    else if (tipo == "libro") tipoNormalizado = "Libro";
-    else if (tipo == "conferencia") tipoNormalizado = "Conferencia";
+    std::string tipoNormalizado = normalizarTipo(tipo);
+    if (tipoNormalizado.empty()) {
+        std::cout << "[ERROR] Tipo invalido. Debe ser Articulo, Libro o Conferencia.\n";
+        return false;
+    }
 
     NodoPublicacion* nuevo = new NodoPublicacion(id, tit, anio, tipoNormalizado, citas, doi, inv, rev, proy);
     if (inv != nullptr) {
@@ -1724,22 +1733,27 @@ bool ListaPublicaciones::modificar(const std::string& id, const std::string& nue
         return false;
     }
 
-    if (nuevoAnio > 0 && nuevoAnio != pub->anio) {
-        // Se guardan los datos necesarios ANTES de eliminar el nodo, evitando
-        // usar punteros a NodoAutorPublicacion despues del delete (use-after-free).
+    // Validar y normalizar el tipo si se provee
+    std::string tipoNorm = "";
+    if (!nuevoTipo.empty()) {
+        tipoNorm = normalizarTipo(nuevoTipo);
+        if (tipoNorm.empty()) {
+            std::cout << "[ERROR] Tipo invalido. Debe ser Articulo, Libro o Conferencia.\n";
+            return false;
+        }
+    }
 
-        // 1) Guardar valores finales (los campos del nodo se perderán al eliminar)
+    if (nuevoAnio > 0 && nuevoAnio != pub->anio) {
+        // 1) Guardar valores finales (se pierden al eliminar el nodo)
         std::string titFinal = nuevoTit.empty() ? pub->titulo : nuevoTit;
-        std::string tipFinal = nuevoTipo.empty() ? pub->tipo : nuevoTipo;
+        std::string tipFinal = tipoNorm.empty() ? pub->tipo : tipoNorm;
         int citFinal = (nuevasCitas >= 0) ? nuevasCitas : pub->cantidadCitas;
         std::string doiFinal = nuevoDoi.empty() ? pub->doi : nuevoDoi;
         NodoInvestigador* invFinal = (nuevoInv != nullptr) ? nuevoInv : pub->investigadorPrincipal;
         NodoRevista* revFinal = (nuevaRev != nullptr) ? nuevaRev : pub->revista;
         NodoProyecto* proyFinal = (nuevoProy != nullptr) ? nuevoProy : pub->proyecto;
 
-        // 2) Guardar punteros a NodoCoautor (viven en las sublistas de los investigadores,
-        //    entonces NO se liberan al eliminar la publicacion). Se guardan copias
-        //    de los punteros, no de los nodos.
+        // 2) Guardar punteros a los coautores (viven en las sublistas de los investigadores)
         int cantidadAutores = pub->autores.getTamano();
         NodoCoautor** coautoresTemp = nullptr;
         int numCoautores = 0;
@@ -1754,25 +1768,57 @@ bool ListaPublicaciones::modificar(const std::string& id, const std::string& nue
             }
         }
 
+        // 2b) Guardar copias de las citaciones (viven dentro del nodo y se borran con el)
+        int numCitas = pub->sublistaCitaciones.getTamano();
+        std::string* citIds = nullptr;
+        int* citAnios = nullptr;
+        std::string* citPubs = nullptr;
+        std::string* citAuts = nullptr;
+        if (numCitas > 0) {
+            citIds = new std::string[numCitas];
+            citAnios = new int[numCitas];
+            citPubs = new std::string[numCitas];
+            citAuts = new std::string[numCitas];
+            int k = 0;
+            NodoCitacion* c = pub->sublistaCitaciones.getCabeza();
+            while (c != nullptr) {
+                citIds[k] = c->idCita;
+                citAnios[k] = c->anio;
+                citPubs[k] = c->publicacionCitante;
+                citAuts[k] = c->autorCitante;
+                k++;
+                c = c->siguiente;
+            }
+        }
+
         // 3) Eliminar e insertar de nuevo en la posicion ordenada
         eliminar(id);
         bool resultado = insertarOrdenadoPorAnio(id, titFinal, nuevoAnio, tipFinal,
                                                   citFinal, doiFinal, invFinal, revFinal, proyFinal);
 
-        // 4) Reasociar los coautores al nuevo nodo (los punteros siguen siendo validos)
+        // 4) Volver a asociar coautores y citaciones al nodo nuevo
         if (resultado) {
             NodoPublicacion* nuevaPub = buscarPorId(id);
             for (int i = 0; i < numCoautores; ++i) {
                 nuevaPub->autores.agregarCoautor(coautoresTemp[i]);
             }
+            // Se usa insertar (no agregarCitaAPublicacion) para no sumar al contador otra vez
+            for (int i = 0; i < numCitas; ++i) {
+                nuevaPub->sublistaCitaciones.insertar(citIds[i], citAnios[i], citPubs[i], citAuts[i]);
+            }
         }
+
         delete[] coautoresTemp;
+        delete[] citIds;
+        delete[] citAnios;
+        delete[] citPubs;
+        delete[] citAuts;
         return resultado;
     }
 
     // Si no cambia el anio, se modifican los campos en su lugar
     if (!nuevoTit.empty()) pub->titulo = nuevoTit;
-    if (!nuevoTipo.empty()) pub->tipo = nuevoTipo;
+    if (!tipoNorm.empty()) pub->tipo = tipoNorm;
     if (nuevasCitas >= 0) pub->cantidadCitas = nuevasCitas;
     if (!nuevoDoi.empty()) pub->doi = nuevoDoi;
     if (nuevoInv != nullptr) pub->investigadorPrincipal = nuevoInv;
@@ -3363,7 +3409,7 @@ void SistemaAcademico::menuCitaciones() {
                 std::cout << "  [ERROR] Publicacion no encontrada.\n";
                 continue;
             }
-            std::string idCita = leerLinea("ID de la cita (ej. CIT19): ");
+            std::string idCita = leerLinea("ID de la cita (ej. CIT15): ");
             int anio = leerEntero("Ano de la citacion: ");
             std::string pubCit = leerLinea("Titulo/Articulo citante: ");
             std::string autCit = leerLinea("Autor(es) citante(s): ");
@@ -3452,7 +3498,7 @@ void SistemaAcademico::menuMetricas() {
         op = leerEntero("Seleccione una opcion [0-4]: ");
 
         if (op == 1) {
-            std::string idInv = leerLinea("Ingrese ID del investigador (ej. INV01): ");
+            std::string idInv = leerLinea("Ingrese ID del investigador (ej. 1): ");
             NodoInvestigador* inv = listaInvestigadores.buscarPorId(idInv);
             if (inv != nullptr) {
                 MetricasAcademicas::mostrarMetricasInvestigador(inv, listaPublicaciones);
@@ -3598,7 +3644,7 @@ void SistemaAcademico::menuReportes() {
                 GestorReportes::reporte4_RevistasYFactoresImpacto(listaRevistas);
                 break;
             case 5: {
-                std::string idInv = leerLinea("Ingrese el ID del investigador (ej. INV01, INV03): ");
+                std::string idInv = leerLinea("Ingrese el ID del investigador (ej. 1, 3): ");
                 GestorReportes::reporte5_RedCoautoriaInvestigador(listaInvestigadores, idInv);
                 break;
             }
@@ -3608,7 +3654,7 @@ void SistemaAcademico::menuReportes() {
                 break;
             }
             case 7: {
-                std::string idArea = leerLinea("Ingrese el ID del area de investigacion (ej. AR01, AR02): ");
+                std::string idArea = leerLinea("Ingrese el ID del area de investigacion (ej. 1, 2): ");
                 GestorReportes::reporte7_PublicacionesDeArea(listaAreas, listaPublicaciones, idArea);
                 break;
             }
@@ -3645,7 +3691,7 @@ void SistemaAcademico::menuInvestigadores() {
         op = leerEntero("Seleccione una opcion [0-7]: ");
 
         if (op == 1) {
-            std::string id = leerLinea("ID del investigador (ej. INV07): ");
+            std::string id = leerLinea("ID del investigador (ej. 6): ");
             if (listaInvestigadores.existeId(id)) {
                 std::cout << "  [ERROR] Ya existe un investigador con ese ID.\n";
                 continue;
@@ -3703,7 +3749,7 @@ void SistemaAcademico::menuInvestigadores() {
                 std::cout << "  [ERROR] Investigador no encontrado.\n";
                 continue;
             }
-            std::string idCo = leerLinea("ID del coautor (ej. CO14): ");
+            std::string idCo = leerLinea("ID del coautor (ej. 107): ");
             std::string nomCo = leerLinea("Nombre del coautor: ");
             std::string uniCo = leerLinea("Universidad del coautor: ");
             int pubC = leerEntero("Cantidad de publicaciones conjuntas: ");
@@ -3730,7 +3776,7 @@ void SistemaAcademico::menuUniversidades() {
         op = leerEntero("Seleccione una opcion [0-5]: ");
 
         if (op == 1) {
-            std::string id = leerLinea("ID de la universidad (ej. U07): ");
+            std::string id = leerLinea("ID de la universidad (ej. 6): ");
             std::string nom = leerLinea("Nombre de la universidad: ");
             std::string pais = leerLinea("Pais: ");
             int rank = leerEntero("Ranking global: ");
@@ -3787,7 +3833,7 @@ void SistemaAcademico::menuAreas() {
         op = leerEntero("Seleccione una opcion [0-5]: ");
 
         if (op == 1) {
-            std::string id = leerLinea("ID del area (ej. AR07): ");
+            std::string id = leerLinea("ID del area (ej. 6): ");
             std::string nom = leerLinea("Nombre del area: ");
             std::string desc = leerLinea("Descripcion: ");
             if (listaAreas.insertarAlFinal(id, nom, desc)) {
@@ -4009,7 +4055,7 @@ void SistemaAcademico::menu() {
             case 9: GestorReportes::reporte2_PublicacionesPorAnioAscendente(listaPublicaciones); break;
             case 10: GestorReportes::reporte4_RevistasYFactoresImpacto(listaRevistas); break;
             case 11: {
-                std::string idArea = leerLinea("Ingrese ID del area de investigacion (ej. AR01, AR02): ");
+                std::string idArea = leerLinea("Ingrese ID del area de investigacion (ej. 1, 2): ");
                 GestorReportes::reporte7_PublicacionesDeArea(listaAreas, listaPublicaciones, idArea);
                 break;
             }
