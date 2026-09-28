@@ -1725,7 +1725,10 @@ bool ListaPublicaciones::modificar(const std::string& id, const std::string& nue
     }
 
     if (nuevoAnio > 0 && nuevoAnio != pub->anio) {
-        // Para conservar el orden por año se guarda temporalmente la relacion de autores.
+        // Se guardan los datos necesarios ANTES de eliminar el nodo, evitando
+        // usar punteros a NodoAutorPublicacion despues del delete (use-after-free).
+
+        // 1) Guardar valores finales (los campos del nodo se perderán al eliminar)
         std::string titFinal = nuevoTit.empty() ? pub->titulo : nuevoTit;
         std::string tipFinal = nuevoTipo.empty() ? pub->tipo : nuevoTipo;
         int citFinal = (nuevasCitas >= 0) ? nuevasCitas : pub->cantidadCitas;
@@ -1734,33 +1737,40 @@ bool ListaPublicaciones::modificar(const std::string& id, const std::string& nue
         NodoRevista* revFinal = (nuevaRev != nullptr) ? nuevaRev : pub->revista;
         NodoProyecto* proyFinal = (nuevoProy != nullptr) ? nuevoProy : pub->proyecto;
 
+        // 2) Guardar punteros a NodoCoautor (viven en las sublistas de los investigadores,
+        //    entonces NO se liberan al eliminar la publicacion). Se guardan copias
+        //    de los punteros, no de los nodos.
         int cantidadAutores = pub->autores.getTamano();
-        NodoAutorPublicacion** autores = nullptr;
-        if (cantidadAutores > 0) {
-            autores = new NodoAutorPublicacion*[cantidadAutores];
+        NodoCoautor** coautoresTemp = nullptr;
+        int numCoautores = 0;
+        if (cantidadAutores > 1) {
+            coautoresTemp = new NodoCoautor*[cantidadAutores - 1];
             NodoAutorPublicacion* autorActual = pub->autores.getCabeza();
-            int i = 0;
-            while (autorActual != nullptr && i < cantidadAutores) {
-                autores[i++] = autorActual;
+            while (autorActual != nullptr) {
+                if (!autorActual->esPrincipal && autorActual->coautor != nullptr) {
+                    coautoresTemp[numCoautores++] = autorActual->coautor;
+                }
                 autorActual = autorActual->siguiente;
             }
         }
 
+        // 3) Eliminar e insertar de nuevo en la posicion ordenada
         eliminar(id);
-        bool resultado = insertarOrdenadoPorAnio(id, titFinal, nuevoAnio, tipFinal, citFinal, doiFinal, invFinal, revFinal, proyFinal);
+        bool resultado = insertarOrdenadoPorAnio(id, titFinal, nuevoAnio, tipFinal,
+                                                  citFinal, doiFinal, invFinal, revFinal, proyFinal);
+
+        // 4) Reasociar los coautores al nuevo nodo (los punteros siguen siendo validos)
         if (resultado) {
             NodoPublicacion* nuevaPub = buscarPorId(id);
-            for (int i = 0; i < cantidadAutores; ++i) {
-                if (autores[i]->esPrincipal) continue;
-                if (autores[i]->coautor != nullptr) {
-                    nuevaPub->autores.agregarCoautor(autores[i]->coautor);
-                }
+            for (int i = 0; i < numCoautores; ++i) {
+                nuevaPub->autores.agregarCoautor(coautoresTemp[i]);
             }
         }
-        delete[] autores;
+        delete[] coautoresTemp;
         return resultado;
     }
 
+    // Si no cambia el anio, se modifican los campos en su lugar
     if (!nuevoTit.empty()) pub->titulo = nuevoTit;
     if (!nuevoTipo.empty()) pub->tipo = nuevoTipo;
     if (nuevasCitas >= 0) pub->cantidadCitas = nuevasCitas;
@@ -1888,12 +1898,10 @@ bool ListaPublicaciones::agregarCitaAPublicacion(const std::string& idPub, const
 
     bool insertado = pub->sublistaCitaciones.insertar(idCita, anioCita, pubCit, autCit);
     if (insertado) {
-        // Actualizar la cantidad de citas de la publicación
-        if (pub->sublistaCitaciones.getTamano() > pub->cantidadCitas) {
-            pub->cantidadCitas = pub->sublistaCitaciones.getTamano();
-        } else {
-            pub->cantidadCitas++;
-        }
+        // Cada cita agregada incrementa en 1 el contador total de citas.
+        // La sublista de citaciones es un registro detallado, 'cantidadCitas' es el
+        // total acumulado (que puede incluir citas historicas no registradas una a una).
+        pub->cantidadCitas++;
     }
     return insertado;
 }
