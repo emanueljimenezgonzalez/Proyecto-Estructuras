@@ -1,4 +1,5 @@
 #include "Investigador.h"
+#include "Publicacion.h"
 #include <iostream>
 #include <iomanip>
 
@@ -34,6 +35,10 @@ bool ListaInvestigadores::insertarAlFinal(const std::string& id, const std::stri
         std::cout << "[ERROR] Ya existe un investigador con el ID: " << id << "\n";
         return false;
     }
+    if (email.find('@') == std::string::npos) {
+        std::cout << "[ERROR] El correo electronico debe contener '@'.\n";
+        return false;
+    }
 
     NodoInvestigador* nuevo = new NodoInvestigador(id, nom, uni, pais, ar, email);
     if (cabeza == nullptr) {
@@ -66,6 +71,10 @@ bool ListaInvestigadores::modificar(const std::string& id, const std::string& nu
     NodoInvestigador* inv = buscarPorId(id);
     if (inv == nullptr) {
         std::cout << "[ERROR] Investigador no encontrado con ID: " << id << "\n";
+        return false;
+    }
+    if (!nuevoCorreo.empty() && nuevoCorreo.find('@') == std::string::npos) {
+        std::cout << "[ERROR] El correo electronico debe contener '@'.\n";
         return false;
     }
     if (!nuevoNombre.empty()) inv->nombreCompleto = nuevoNombre;
@@ -151,6 +160,8 @@ void ListaInvestigadores::mostrarConDetalles() const {
                   << " | Correo: " << actual->correo << "\n";
         std::cout << "Area: " << (actual->area ? actual->area->nombre : "N/A")
                   << " | Indice H actual: " << actual->indiceH << "\n";
+        std::cout << "Publicacion enlazada: "
+                  << (actual->publicacion ? actual->publicacion->titulo : "Ninguna") << "\n";
         std::cout << "Red de Coautores (" << actual->sublistaCoautores.getTamano() << "):\n";
         actual->sublistaCoautores.mostrar();
         actual = actual->siguiente;

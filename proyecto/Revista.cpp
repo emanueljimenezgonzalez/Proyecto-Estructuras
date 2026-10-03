@@ -94,20 +94,47 @@ bool ListaRevistas::modificar(const std::string& id, const std::string& nuevoNom
         return false;
     }
     if (!nuevoNom.empty() && nuevoNom != rev->nombre) {
-        // Si cambia el nombre, para preservar el orden debemos reinsertar
-        std::string edFinal = nuevaEd.empty() ? rev->editorial : nuevaEd;
-        std::string paisFinal = nuevoPais.empty() ? rev->pais : nuevoPais;
-        double fiFinal = (nuevoFI >= 0.0) ? nuevoFI : rev->factorImpacto;
-        std::string qFinal = esCuartilValido(nuevoCuartil) ? nuevoCuartil : rev->cuartil;
-
-        eliminar(id);
-        return insertarOrdenado(id, nuevoNom, edFinal, paisFinal, fiFinal, qFinal);
+        // Se mueve el mismo nodo (sin borrarlo) para conservar el orden alfabetico
+        desenlazar(rev);
+        rev->nombre = nuevoNom;
+        enlazarOrdenado(rev);
     }
     if (!nuevaEd.empty()) rev->editorial = nuevaEd;
     if (!nuevoPais.empty()) rev->pais = nuevoPais;
     if (nuevoFI >= 0.0) rev->factorImpacto = nuevoFI;
     if (esCuartilValido(nuevoCuartil)) rev->cuartil = nuevoCuartil;
     return true;
+}
+
+void ListaRevistas::desenlazar(NodoRevista* nodo) {
+    if (cabeza == nullptr || nodo == nullptr) return;
+    if (cabeza == nodo) {
+        cabeza = nodo->siguiente;
+    } else {
+        NodoRevista* previo = cabeza;
+        while (previo->siguiente != nullptr && previo->siguiente != nodo) {
+            previo = previo->siguiente;
+        }
+        if (previo->siguiente == nullptr) return;
+        previo->siguiente = nodo->siguiente;
+    }
+    nodo->siguiente = nullptr;
+    tamano--;
+}
+
+void ListaRevistas::enlazarOrdenado(NodoRevista* nuevo) {
+    if (cabeza == nullptr || nuevo->nombre < cabeza->nombre) {
+        nuevo->siguiente = cabeza;
+        cabeza = nuevo;
+    } else {
+        NodoRevista* actual = cabeza;
+        while (actual->siguiente != nullptr && actual->siguiente->nombre < nuevo->nombre) {
+            actual = actual->siguiente;
+        }
+        nuevo->siguiente = actual->siguiente;
+        actual->siguiente = nuevo;
+    }
+    tamano++;
 }
 
 bool ListaRevistas::eliminar(const std::string& id) {

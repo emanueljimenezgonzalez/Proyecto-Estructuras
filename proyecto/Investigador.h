@@ -4,6 +4,8 @@
 #include "Area.h"
 #include "Coautor.h"
 
+struct NodoPublicacion;   // forward declaration
+
 // Nodo de la Lista Simple de Investigadores
 struct NodoInvestigador {
     std::string idInvestigador;
@@ -14,13 +16,15 @@ struct NodoInvestigador {
     std::string correo;
     int indiceH;
     ListaCoautores sublistaCoautores; // Sublista doble de coautores
+    NodoPublicacion* publicacion;     // Enlace a una publicacion del investigador (1:N)
     NodoInvestigador* siguiente;
 
     NodoInvestigador(const std::string& id, const std::string& nom,
                      NodoUniversidad* uni, const std::string& p,
                      NodoArea* ar, const std::string& email)
         : idInvestigador(id), nombreCompleto(nom), universidad(uni),
-          pais(p), area(ar), correo(email), indiceH(0), siguiente(nullptr) {}
+          pais(p), area(ar), correo(email), indiceH(0),
+          publicacion(nullptr), siguiente(nullptr) {}
 };
 
 // Lista Simple de Investigadores

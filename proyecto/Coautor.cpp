@@ -1,4 +1,5 @@
 #include "Coautor.h"
+#include "Universidad.h"
 #include <iostream>
 
 ListaCoautores::ListaCoautores() : cabeza(nullptr), cola(nullptr), tamano(0) {}
@@ -23,7 +24,7 @@ bool ListaCoautores::existeId(const std::string& id) const {
     return buscarPorId(id) != nullptr;
 }
 
-bool ListaCoautores::insertar(const std::string& id, const std::string& nom, const std::string& uni, int pubConj) {
+bool ListaCoautores::insertar(const std::string& id, const std::string& nom, NodoUniversidad* uni, int pubConj) {
     if (id.empty() || nom.empty()) {
         std::cout << "    [ERROR] ID y nombre de coautor son requeridos.\n";
         return false;
@@ -48,6 +49,23 @@ bool ListaCoautores::insertar(const std::string& id, const std::string& nom, con
     return true;
 }
 
+bool ListaCoautores::agregarCoautorExistente(NodoCoautor* coautor) {
+    if (coautor == nullptr) return false;
+    if (existeId(coautor->idCoautor)) return false;   // ya esta en la sublista
+
+    NodoCoautor* nuevo = new NodoCoautor(
+        coautor->idCoautor, coautor->nombre, coautor->universidad, coautor->publicacionesConjuntas);
+    if (cabeza == nullptr) {
+        cabeza = cola = nuevo;
+    } else {
+        cola->siguiente = nuevo;
+        nuevo->anterior = cola;
+        cola = nuevo;
+    }
+    tamano++;
+    return true;
+}
+
 NodoCoautor* ListaCoautores::buscarPorId(const std::string& id) const {
     NodoCoautor* actual = cabeza;
     while (actual != nullptr) {
@@ -59,11 +77,11 @@ NodoCoautor* ListaCoautores::buscarPorId(const std::string& id) const {
     return nullptr;
 }
 
-bool ListaCoautores::modificar(const std::string& id, const std::string& nuevoNom, const std::string& nuevaUni, int nuevasPubConj) {
+bool ListaCoautores::modificar(const std::string& id, const std::string& nuevoNom, NodoUniversidad* nuevaUni, int nuevasPubConj) {
     NodoCoautor* nodo = buscarPorId(id);
     if (nodo == nullptr) return false;
     if (!nuevoNom.empty()) nodo->nombre = nuevoNom;
-    if (!nuevaUni.empty()) nodo->universidad = nuevaUni;
+    if (nuevaUni != nullptr) nodo->universidad = nuevaUni;
     if (nuevasPubConj >= 0) nodo->publicacionesConjuntas = nuevasPubConj;
     return true;
 }
@@ -98,8 +116,9 @@ void ListaCoautores::mostrar() const {
 
     NodoCoautor* actual = cabeza;
     while (actual != nullptr) {
+        std::string uniNombre = (actual->universidad != nullptr) ? actual->universidad->nombre : "Sin asignar";
         std::cout << "    * [" << actual->idCoautor << "] " << actual->nombre
-                  << " (" << actual->universidad << ") - Pub. conjuntas: "
+                  << " (" << uniNombre << ") - Pub. conjuntas: "
                   << actual->publicacionesConjuntas << "\n";
         actual = actual->siguiente;
     }

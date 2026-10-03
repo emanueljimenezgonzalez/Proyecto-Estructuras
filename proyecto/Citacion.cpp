@@ -1,4 +1,6 @@
 #include "Citacion.h"
+#include "Publicacion.h"
+#include "Investigador.h"
 #include <iostream>
 
 ListaCitaciones::ListaCitaciones() : cabeza(nullptr), cola(nullptr), tamano(0) {}
@@ -23,7 +25,7 @@ bool ListaCitaciones::existeId(const std::string& id) const {
     return buscarPorId(id) != nullptr;
 }
 
-bool ListaCitaciones::insertar(const std::string& id, int a, const std::string& pubCit, const std::string& autCit) {
+bool ListaCitaciones::insertar(const std::string& id, int a, NodoPublicacion* pubCit, NodoInvestigador* autCit) {
     if (id.empty()) {
         std::cout << "    [ERROR] El ID de la citacion es requerido.\n";
         return false;
@@ -60,12 +62,12 @@ NodoCitacion* ListaCitaciones::buscarPorId(const std::string& id) const {
     return nullptr;
 }
 
-bool ListaCitaciones::modificar(const std::string& id, int nuevoAnio, const std::string& nuevaPubCit, const std::string& nuevoAutCit) {
+bool ListaCitaciones::modificar(const std::string& id, int nuevoAnio, NodoPublicacion* nuevaPubCit, NodoInvestigador* nuevoAutCit) {
     NodoCitacion* nodo = buscarPorId(id);
     if (nodo == nullptr) return false;
     if (nuevoAnio > 0) nodo->anio = nuevoAnio;
-    if (!nuevaPubCit.empty()) nodo->publicacionCitante = nuevaPubCit;
-    if (!nuevoAutCit.empty()) nodo->autorCitante = nuevoAutCit;
+    if (nuevaPubCit != nullptr) nodo->publicacionCitante = nuevaPubCit;
+    if (nuevoAutCit != nullptr) nodo->autorCitante = nuevoAutCit;
     return true;
 }
 
@@ -99,8 +101,12 @@ void ListaCitaciones::mostrar() const {
 
     NodoCitacion* actual = cabeza;
     while (actual != nullptr) {
+        std::string pubNombre = (actual->publicacionCitante != nullptr)
+                                ? actual->publicacionCitante->titulo : "N/A";
+        std::string autNombre = (actual->autorCitante != nullptr)
+                                ? actual->autorCitante->nombreCompleto : "N/A";
         std::cout << "    * [" << actual->idCita << "] (" << actual->anio << ") "
-                  << "\"" << actual->publicacionCitante << "\" por " << actual->autorCitante << "\n";
+                  << "\"" << pubNombre << "\" por " << autNombre << "\n";
         actual = actual->siguiente;
     }
 }

@@ -354,6 +354,11 @@ void GestorConsultas::consulta8_AnioMayorProduccion(const ListaPublicaciones& pu
     delete[] cuentas;
 }
 
+// Total de autores = investigador principal (si existe) + coautores
+static int contarAutores(const NodoPublicacion* pub) {
+    return pub->sublistaCoautores.getTamano() + (pub->investigadorPrincipal != nullptr ? 1 : 0);
+}
+
 // 9. ¿Cuál publicación tiene mayor cantidad de autores?
 void GestorConsultas::consulta9_PublicacionMasAutores(const ListaPublicaciones& pubs) {
     std::cout << "\n================================================================================\n";
@@ -368,7 +373,7 @@ void GestorConsultas::consulta9_PublicacionMasAutores(const ListaPublicaciones& 
     int maxAutores = -1;
     NodoPublicacion* pub = pubs.getCabeza();
     do {
-        int autores = pub->autores.getTamano();
+        int autores = contarAutores(pub);
         if (autores > maxAutores) {
             maxAutores = autores;
         }
@@ -380,13 +385,15 @@ void GestorConsultas::consulta9_PublicacionMasAutores(const ListaPublicaciones& 
     pub = pubs.getCabeza();
     int count = 0;
     do {
-        if (pub->autores.getTamano() == maxAutores) {
+        if (contarAutores(pub) == maxAutores) {
             count++;
             std::cout << "  [" << count << "] \"" << pub->titulo << "\" (" << pub->anio << ")\n"
                       << "      ID: " << pub->idPublicacion
-                      << " | Total Autores: " << pub->autores.getTamano() << "\n"
-                      << "      Autores:\n";
-            pub->autores.mostrar();
+                      << " | Total Autores: " << contarAutores(pub) << "\n"
+                      << "      Investigador principal: "
+                      << (pub->investigadorPrincipal ? pub->investigadorPrincipal->nombreCompleto : "N/A") << "\n"
+                      << "      Coautores:\n";
+            pub->sublistaCoautores.mostrar();
             std::cout << "\n";
         }
         pub = pub->siguiente;

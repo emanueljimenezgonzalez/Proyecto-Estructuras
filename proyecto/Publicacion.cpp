@@ -2,87 +2,6 @@
 #include <iostream>
 #include <iomanip>
 
-// ----- Autores de Publicacion -----
-
-ListaAutoresPublicacion::ListaAutoresPublicacion()
-    : cabeza(nullptr), cola(nullptr), tamano(0) {}
-
-ListaAutoresPublicacion::~ListaAutoresPublicacion() {
-    liberar();
-}
-
-void ListaAutoresPublicacion::liberar() {
-    NodoAutorPublicacion* actual = cabeza;
-    while (actual != nullptr) {
-        NodoAutorPublicacion* siguiente = actual->siguiente;
-        delete actual;
-        actual = siguiente;
-    }
-    cabeza = nullptr;
-    cola = nullptr;
-    tamano = 0;
-}
-
-bool ListaAutoresPublicacion::existeAutor(const std::string& idAutor) const {
-    NodoAutorPublicacion* actual = cabeza;
-    while (actual != nullptr) {
-        if (actual->idAutor == idAutor) return true;
-        actual = actual->siguiente;
-    }
-    return false;
-}
-
-bool ListaAutoresPublicacion::agregarInvestigador(NodoInvestigador* investigador) {
-    if (investigador == nullptr || existeAutor(investigador->idInvestigador)) return false;
-
-    NodoAutorPublicacion* nuevo = new NodoAutorPublicacion(
-        investigador->idInvestigador, investigador->nombreCompleto, true, investigador, nullptr);
-
-    if (cabeza == nullptr) {
-        cabeza = nuevo;
-        cola = nuevo;
-    } else {
-        cola->siguiente = nuevo;
-        cola = nuevo;
-    }
-    tamano++;
-    return true;
-}
-
-bool ListaAutoresPublicacion::agregarCoautor(NodoCoautor* coautor) {
-    if (coautor == nullptr || existeAutor(coautor->idCoautor)) return false;
-
-    NodoAutorPublicacion* nuevo = new NodoAutorPublicacion(
-        coautor->idCoautor, coautor->nombre, false, nullptr, coautor);
-
-    if (cabeza == nullptr) {
-        cabeza = nuevo;
-        cola = nuevo;
-    } else {
-        cola->siguiente = nuevo;
-        cola = nuevo;
-    }
-    tamano++;
-    return true;
-}
-
-void ListaAutoresPublicacion::mostrar() const {
-    if (cabeza == nullptr) {
-        std::cout << "  (Sin autores registrados)\n";
-        return;
-    }
-
-    NodoAutorPublicacion* actual = cabeza;
-    int posicion = 1;
-    while (actual != nullptr) {
-        std::cout << "  " << posicion << ". " << actual->nombreAutor
-                  << " [ID: " << actual->idAutor << "]"
-                  << (actual->esPrincipal ? " (Investigador principal)" : " (Coautor)") << "\n";
-        actual = actual->siguiente;
-        posicion++;
-    }
-}
-
 // ----- Publicaciones (Lista Circular) -----
 
 ListaPublicaciones::ListaPublicaciones() : cabeza(nullptr), tamano(0) {}
@@ -136,8 +55,8 @@ bool ListaPublicaciones::insertarOrdenadoPorAnio(const std::string& id, const st
         std::cout << "[ERROR] ID y titulo de la publicacion son obligatorios.\n";
         return false;
     }
-    if (anio <= 0) {
-        std::cout << "[ERROR] El ano de la publicacion debe ser valido.\n";
+    if (anio < 1900 || anio > 2100) {
+        std::cout << "[ERROR] El ano de la publicacion debe estar entre 1900 y 2100.\n";
         return false;
     }
     if (citas < 0) citas = 0;
@@ -153,9 +72,6 @@ bool ListaPublicaciones::insertarOrdenadoPorAnio(const std::string& id, const st
     }
 
     NodoPublicacion* nuevo = new NodoPublicacion(id, tit, anio, tipoNormalizado, citas, doi, inv, rev, proy);
-    if (inv != nullptr) {
-        nuevo->autores.agregarInvestigador(inv);
-    }
 
     if (cabeza == nullptr) {
         nuevo->siguiente = nuevo;
@@ -215,80 +131,20 @@ bool ListaPublicaciones::modificar(const std::string& id, const std::string& nue
         }
     }
 
-    if (nuevoAnio > 0 && nuevoAnio != pub->anio) {
-        // 1) Guardar valores finales (se pierden al eliminar el nodo)
-        std::string titFinal = nuevoTit.empty() ? pub->titulo : nuevoTit;
-        std::string tipFinal = tipoNorm.empty() ? pub->tipo : tipoNorm;
-        int citFinal = (nuevasCitas >= 0) ? nuevasCitas : pub->cantidadCitas;
-        std::string doiFinal = nuevoDoi.empty() ? pub->doi : nuevoDoi;
-        NodoInvestigador* invFinal = (nuevoInv != nullptr) ? nuevoInv : pub->investigadorPrincipal;
-        NodoRevista* revFinal = (nuevaRev != nullptr) ? nuevaRev : pub->revista;
-        NodoProyecto* proyFinal = (nuevoProy != nullptr) ? nuevoProy : pub->proyecto;
-
-        // 2) Guardar punteros a los coautores (viven en las sublistas de los investigadores)
-        int cantidadAutores = pub->autores.getTamano();
-        NodoCoautor** coautoresTemp = nullptr;
-        int numCoautores = 0;
-        if (cantidadAutores > 1) {
-            coautoresTemp = new NodoCoautor*[cantidadAutores - 1];
-            NodoAutorPublicacion* autorActual = pub->autores.getCabeza();
-            while (autorActual != nullptr) {
-                if (!autorActual->esPrincipal && autorActual->coautor != nullptr) {
-                    coautoresTemp[numCoautores++] = autorActual->coautor;
-                }
-                autorActual = autorActual->siguiente;
-            }
-        }
-
-        // 2b) Guardar copias de las citaciones (viven dentro del nodo y se borran con el)
-        int numCitas = pub->sublistaCitaciones.getTamano();
-        std::string* citIds = nullptr;
-        int* citAnios = nullptr;
-        std::string* citPubs = nullptr;
-        std::string* citAuts = nullptr;
-        if (numCitas > 0) {
-            citIds = new std::string[numCitas];
-            citAnios = new int[numCitas];
-            citPubs = new std::string[numCitas];
-            citAuts = new std::string[numCitas];
-            int k = 0;
-            NodoCitacion* c = pub->sublistaCitaciones.getCabeza();
-            while (c != nullptr) {
-                citIds[k] = c->idCita;
-                citAnios[k] = c->anio;
-                citPubs[k] = c->publicacionCitante;
-                citAuts[k] = c->autorCitante;
-                k++;
-                c = c->siguiente;
-            }
-        }
-
-        // 3) Eliminar e insertar de nuevo en la posicion ordenada
-        eliminar(id);
-        bool resultado = insertarOrdenadoPorAnio(id, titFinal, nuevoAnio, tipFinal,
-                                                  citFinal, doiFinal, invFinal, revFinal, proyFinal);
-
-        // 4) Volver a asociar coautores y citaciones al nodo nuevo
-        if (resultado) {
-            NodoPublicacion* nuevaPub = buscarPorId(id);
-            for (int i = 0; i < numCoautores; ++i) {
-                nuevaPub->autores.agregarCoautor(coautoresTemp[i]);
-            }
-            // Se usa insertar (no agregarCitaAPublicacion) para no sumar al contador otra vez
-            for (int i = 0; i < numCitas; ++i) {
-                nuevaPub->sublistaCitaciones.insertar(citIds[i], citAnios[i], citPubs[i], citAuts[i]);
-            }
-        }
-
-        delete[] coautoresTemp;
-        delete[] citIds;
-        delete[] citAnios;
-        delete[] citPubs;
-        delete[] citAuts;
-        return resultado;
+    if (nuevoAnio > 0 && (nuevoAnio < 1900 || nuevoAnio > 2100)) {
+        std::cout << "[ERROR] El ano de la publicacion debe estar entre 1900 y 2100.\n";
+        return false;
     }
 
-    // Si no cambia el anio, se modifican los campos en su lugar
+    if (nuevoAnio > 0 && nuevoAnio != pub->anio) {
+        // Se mueve el mismo nodo (sin borrarlo) para que sigan validos los
+        // punteros de las citaciones y se conserven coautores y citaciones.
+        desenlazar(pub);
+        pub->anio = nuevoAnio;
+        enlazarOrdenado(pub);
+    }
+
+    // Se modifican los demas campos en su lugar
     if (!nuevoTit.empty()) pub->titulo = nuevoTit;
     if (!tipoNorm.empty()) pub->tipo = tipoNorm;
     if (nuevasCitas >= 0) pub->cantidadCitas = nuevasCitas;
@@ -299,8 +155,67 @@ bool ListaPublicaciones::modificar(const std::string& id, const std::string& nue
     return true;
 }
 
+void ListaPublicaciones::desenlazar(NodoPublicacion* nodo) {
+    if (cabeza == nullptr || nodo == nullptr) return;
+    if (tamano == 1) {
+        cabeza = nullptr;
+        nodo->siguiente = nullptr;
+        tamano = 0;
+        return;
+    }
+    NodoPublicacion* previo = cabeza;
+    while (previo->siguiente != nodo) {
+        previo = previo->siguiente;
+    }
+    previo->siguiente = nodo->siguiente;
+    if (nodo == cabeza) cabeza = nodo->siguiente;
+    nodo->siguiente = nullptr;
+    tamano--;
+}
+
+void ListaPublicaciones::enlazarOrdenado(NodoPublicacion* nuevo) {
+    if (cabeza == nullptr) {
+        nuevo->siguiente = nuevo;
+        cabeza = nuevo;
+    } else if (nuevo->anio < cabeza->anio) {
+        NodoPublicacion* ultimo = cabeza;
+        while (ultimo->siguiente != cabeza) {
+            ultimo = ultimo->siguiente;
+        }
+        nuevo->siguiente = cabeza;
+        ultimo->siguiente = nuevo;
+        cabeza = nuevo;
+    } else {
+        NodoPublicacion* actual = cabeza;
+        while (actual->siguiente != cabeza && actual->siguiente->anio <= nuevo->anio) {
+            actual = actual->siguiente;
+        }
+        nuevo->siguiente = actual->siguiente;
+        actual->siguiente = nuevo;
+    }
+    tamano++;
+}
+
+// Evita punteros colgantes: las citaciones que apuntan a la publicacion borrada quedan en nullptr
+void ListaPublicaciones::anularCitasHacia(NodoPublicacion* objetivo) {
+    if (cabeza == nullptr) return;
+    NodoPublicacion* p = cabeza;
+    do {
+        NodoCitacion* c = p->sublistaCitaciones.getCabeza();
+        while (c != nullptr) {
+            if (c->publicacionCitante == objetivo) c->publicacionCitante = nullptr;
+            c = c->siguiente;
+        }
+        p = p->siguiente;
+    } while (p != cabeza);
+}
+
 bool ListaPublicaciones::eliminar(const std::string& id) {
     if (cabeza == nullptr) return false;
+
+    NodoPublicacion* objetivo = buscarPorId(id);
+    if (objetivo == nullptr) return false;
+    anularCitasHacia(objetivo);
 
     // Caso 1: Un solo nodo en la lista circular
     if (tamano == 1) {
@@ -399,7 +314,7 @@ bool ListaPublicaciones::agregarCoautorAPublicacion(const std::string& idPub,
         return false;
     }
 
-    if (!pub->autores.agregarCoautor(coautor)) {
+    if (!pub->sublistaCoautores.agregarCoautorExistente(coautor)) {
         std::cout << "[ERROR] El coautor ya esta asociado a esta publicacion.\n";
         return false;
     }
@@ -407,14 +322,24 @@ bool ListaPublicaciones::agregarCoautorAPublicacion(const std::string& idPub,
 }
 
 bool ListaPublicaciones::agregarCitaAPublicacion(const std::string& idPub, const std::string& idCita,
-                                                int anioCita, const std::string& pubCit, const std::string& autCit) {
+                                                int anioCita, NodoPublicacion* pubCitante, NodoInvestigador* autCitante) {
     NodoPublicacion* pub = buscarPorId(idPub);
     if (pub == nullptr) {
         std::cout << "[ERROR] Publicacion " << idPub << " no existe.\n";
         return false;
     }
 
-    bool insertado = pub->sublistaCitaciones.insertar(idCita, anioCita, pubCit, autCit);
+    if (pubCitante == pub) {
+        std::cout << "[ERROR] Una publicacion no puede citarse a si misma.\n";
+        return false;
+    }
+    if (anioCita < pub->anio) {
+        std::cout << "[ERROR] El ano de la cita no puede ser menor al ano de la publicacion citada ("
+                  << pub->anio << ").\n";
+        return false;
+    }
+
+    bool insertado = pub->sublistaCitaciones.insertar(idCita, anioCita, pubCitante, autCitante);
     if (insertado) {
         // Cada cita agregada incrementa en 1 el contador total de citas.
         // La sublista de citaciones es un registro detallado, 'cantidadCitas' es el
@@ -487,12 +412,37 @@ void ListaPublicaciones::mostrarConDetalles() const {
                   << (actual->revista ? (actual->revista->nombre + " (" + actual->revista->cuartil + ")") : "N/A") << "\n";
         std::cout << "Proyecto Asociado: "
                   << (actual->proyecto ? actual->proyecto->nombre : "Ninguno") << "\n";
-        std::cout << "Autores (" << actual->autores.getTamano() << "):\n";
-        actual->autores.mostrar();
+        std::cout << "Coautores de esta publicacion (" << actual->sublistaCoautores.getTamano() << "):\n";
+        actual->sublistaCoautores.mostrar();
         std::cout << "Sublista de Citaciones Detalladas (" << actual->sublistaCitaciones.getTamano() << "):\n";
         actual->sublistaCitaciones.mostrar();
 
         actual = actual->siguiente;
     } while (actual != cabeza);
     std::cout << "========================================================================================\n";
+}
+
+void ListaPublicaciones::actualizarEnlaces(ListaInvestigadores& invs, ListaRevistas& revs) const {
+    NodoInvestigador* inv = invs.getCabeza();
+    while (inv != nullptr) {
+        inv->publicacion = nullptr;
+        inv = inv->siguiente;
+    }
+    NodoRevista* rev = revs.getCabeza();
+    while (rev != nullptr) {
+        rev->publicacion = nullptr;
+        rev = rev->siguiente;
+    }
+    if (cabeza == nullptr) return;
+
+    NodoPublicacion* p = cabeza;
+    do {
+        if (p->investigadorPrincipal != nullptr && p->investigadorPrincipal->publicacion == nullptr) {
+            p->investigadorPrincipal->publicacion = p;
+        }
+        if (p->revista != nullptr && p->revista->publicacion == nullptr) {
+            p->revista->publicacion = p;
+        }
+        p = p->siguiente;
+    } while (p != cabeza);
 }

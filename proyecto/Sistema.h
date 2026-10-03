@@ -15,6 +15,16 @@ private:
     ListaProyectos listaProyectos;
     ListaPublicaciones listaPublicaciones;
 
+    // Recalcula indices H y actualiza los enlaces "publicacion" de investigadores y revistas
+    void sincronizar();
+
+    // Antes de eliminar un nodo, pone en nullptr los punteros de otras listas que lo apuntan
+    void limpiarReferenciasInvestigador(NodoInvestigador* inv);
+    void limpiarReferenciasUniversidad(NodoUniversidad* uni);
+    void limpiarReferenciasArea(NodoArea* ar);
+    void limpiarReferenciasRevista(NodoRevista* rev);
+    void limpiarReferenciasProyecto(NodoProyecto* proy);
+
 public:
     SistemaAcademico();
     ~SistemaAcademico();

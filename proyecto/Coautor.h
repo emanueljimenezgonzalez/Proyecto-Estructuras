@@ -1,16 +1,18 @@
 #pragma once
 #include <string>
 
+struct NodoUniversidad;   // forward declaration
+
 // Nodo de la Lista Doble de Coautores (sublista dentro de Investigador)
 struct NodoCoautor {
     std::string idCoautor;
     std::string nombre;
-    std::string universidad;
+    NodoUniversidad* universidad;     // Enlace a la universidad (N:1)
     int publicacionesConjuntas;
     NodoCoautor* siguiente;
     NodoCoautor* anterior;
 
-    NodoCoautor(const std::string& id, const std::string& nom, const std::string& uni, int pubConj)
+    NodoCoautor(const std::string& id, const std::string& nom, NodoUniversidad* uni, int pubConj)
         : idCoautor(id), nombre(nom), universidad(uni), publicacionesConjuntas(pubConj),
           siguiente(nullptr), anterior(nullptr) {}
 };
@@ -28,9 +30,12 @@ public:
     ~ListaCoautores();
 
     // Operaciones
-    bool insertar(const std::string& id, const std::string& nom, const std::string& uni, int pubConj);
+    bool insertar(const std::string& id, const std::string& nom, NodoUniversidad* uni, int pubConj);
     NodoCoautor* buscarPorId(const std::string& id) const;
-    bool modificar(const std::string& id, const std::string& nuevoNom, const std::string& nuevaUni, int nuevasPubConj);
+    bool modificar(const std::string& id, const std::string& nuevoNom, NodoUniversidad* nuevaUni, int nuevasPubConj);
+
+    // Agrega un coautor existente a esta sublista (crea un nodo con los mismos datos)
+    bool agregarCoautorExistente(NodoCoautor* coautor);
     bool eliminar(const std::string& id);
     void mostrar() const;
 

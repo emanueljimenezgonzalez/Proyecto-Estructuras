@@ -90,15 +90,16 @@ bool ListaProyectos::modificar(const std::string& id, const std::string& nuevoNo
     }
 
     if (nuevoAIni > 0 && nuevoAIni != p->anioInicio) {
-        // Si cambia año de inicio, para preservar el orden eliminamos y reinsertamos
-        std::string nomFinal = nuevoNom.empty() ? p->nombre : nuevoNom;
-        double finFinal = (nuevoFin >= 0.0) ? nuevoFin : p->financiamiento;
-        int aIniFinal = nuevoAIni;
-        int aFinFinal = (nuevoAFin >= aIniFinal) ? nuevoAFin : p->anioFin;
-        NodoInvestigador* respFinal = (nuevoResp != nullptr) ? nuevoResp : p->investigadorResponsable;
-
-        eliminar(id);
-        return insertarOrdenadoPorAnio(id, nomFinal, finFinal, aIniFinal, aFinFinal, respFinal);
+        int aFinFinal = (nuevoAFin >= nuevoAIni) ? nuevoAFin : p->anioFin;
+        if (aFinFinal < nuevoAIni) {
+            std::cout << "[ERROR] El ano de finalizacion no puede ser menor al de inicio.\n";
+            return false;
+        }
+        // Se mueve el mismo nodo (sin borrarlo) para conservar el orden por ano de inicio
+        desenlazar(p);
+        p->anioInicio = nuevoAIni;
+        p->anioFin = aFinFinal;
+        enlazarOrdenado(p);
     }
 
     if (!nuevoNom.empty()) p->nombre = nuevoNom;
@@ -106,6 +107,50 @@ bool ListaProyectos::modificar(const std::string& id, const std::string& nuevoNo
     if (nuevoAFin >= p->anioInicio) p->anioFin = nuevoAFin;
     if (nuevoResp != nullptr) p->investigadorResponsable = nuevoResp;
     return true;
+}
+
+void ListaProyectos::desenlazar(NodoProyecto* nodo) {
+    if (nodo == nullptr) return;
+    if (nodo == cabeza && nodo == cola) {
+        cabeza = cola = nullptr;
+    } else if (nodo == cabeza) {
+        cabeza = cabeza->siguiente;
+        cabeza->anterior = nullptr;
+    } else if (nodo == cola) {
+        cola = cola->anterior;
+        cola->siguiente = nullptr;
+    } else {
+        nodo->anterior->siguiente = nodo->siguiente;
+        nodo->siguiente->anterior = nodo->anterior;
+    }
+    nodo->siguiente = nullptr;
+    nodo->anterior = nullptr;
+    tamano--;
+}
+
+void ListaProyectos::enlazarOrdenado(NodoProyecto* nuevo) {
+    int aIni = nuevo->anioInicio;
+    if (cabeza == nullptr) {
+        cabeza = cola = nuevo;
+    } else if (aIni < cabeza->anioInicio) {
+        nuevo->siguiente = cabeza;
+        cabeza->anterior = nuevo;
+        cabeza = nuevo;
+    } else if (aIni >= cola->anioInicio) {
+        cola->siguiente = nuevo;
+        nuevo->anterior = cola;
+        cola = nuevo;
+    } else {
+        NodoProyecto* actual = cabeza;
+        while (actual != nullptr && actual->anioInicio <= aIni) {
+            actual = actual->siguiente;
+        }
+        nuevo->siguiente = actual;
+        nuevo->anterior = actual->anterior;
+        actual->anterior->siguiente = nuevo;
+        actual->anterior = nuevo;
+    }
+    tamano++;
 }
 
 bool ListaProyectos::eliminar(const std::string& id) {

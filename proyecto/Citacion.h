@@ -1,16 +1,19 @@
 #pragma once
 #include <string>
 
+struct NodoPublicacion;    // forward declarations
+struct NodoInvestigador;
+
 // Nodo de la Lista Doble de Citaciones (sublista dentro de Publicación)
 struct NodoCitacion {
     std::string idCita;
     int anio;
-    std::string publicacionCitante; // Nombre o título de la publicación que cita
-    std::string autorCitante;       // Autor que realizó la cita
+    NodoPublicacion* publicacionCitante;   // Enlace a la publicacion que cita
+    NodoInvestigador* autorCitante;        // Enlace al investigador que realizo la cita
     NodoCitacion* siguiente;
     NodoCitacion* anterior;
 
-    NodoCitacion(const std::string& id, int a, const std::string& pubCit, const std::string& autCit)
+    NodoCitacion(const std::string& id, int a, NodoPublicacion* pubCit, NodoInvestigador* autCit)
         : idCita(id), anio(a), publicacionCitante(pubCit), autorCitante(autCit),
           siguiente(nullptr), anterior(nullptr) {}
 };
@@ -28,9 +31,9 @@ public:
     ~ListaCitaciones();
 
     // Operaciones principales
-    bool insertar(const std::string& id, int a, const std::string& pubCit, const std::string& autCit);
+    bool insertar(const std::string& id, int a, NodoPublicacion* pubCit, NodoInvestigador* autCit);
     NodoCitacion* buscarPorId(const std::string& id) const;
-    bool modificar(const std::string& id, int nuevoAnio, const std::string& nuevaPubCit, const std::string& nuevoAutCit);
+    bool modificar(const std::string& id, int nuevoAnio, NodoPublicacion* nuevaPubCit, NodoInvestigador* nuevoAutCit);
     bool eliminar(const std::string& id);
     void mostrar() const;
 

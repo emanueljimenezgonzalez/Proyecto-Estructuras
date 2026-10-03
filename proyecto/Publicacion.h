@@ -6,42 +6,6 @@
 #include "Proyecto.h"
 #include "Citacion.h"
 
-// Relacion de autores de una publicacion.
-// Es una estructura auxiliar para representar que una publicacion
-// puede tener varios autores sin utilizar STL.
-struct NodoAutorPublicacion {
-    std::string idAutor;
-    std::string nombreAutor;
-    bool esPrincipal;
-    NodoInvestigador* investigador;
-    NodoCoautor* coautor;
-    NodoAutorPublicacion* siguiente;
-
-    NodoAutorPublicacion(const std::string& id, const std::string& nom, bool principal,
-                         NodoInvestigador* inv, NodoCoautor* coaut)
-        : idAutor(id), nombreAutor(nom), esPrincipal(principal),
-          investigador(inv), coautor(coaut), siguiente(nullptr) {}
-};
-
-class ListaAutoresPublicacion {
-private:
-    NodoAutorPublicacion* cabeza;
-    NodoAutorPublicacion* cola;
-    int tamano;
-
-public:
-    ListaAutoresPublicacion();
-    ~ListaAutoresPublicacion();
-
-    bool agregarInvestigador(NodoInvestigador* investigador);
-    bool agregarCoautor(NodoCoautor* coautor);
-    bool existeAutor(const std::string& idAutor) const;
-    int getTamano() const { return tamano; }
-    NodoAutorPublicacion* getCabeza() const { return cabeza; }
-    void mostrar() const;
-    void liberar();
-};
-
 // Nodo de la Lista Circular de Publicaciones
 struct NodoPublicacion {
     std::string idPublicacion;
@@ -53,7 +17,7 @@ struct NodoPublicacion {
     NodoInvestigador* investigadorPrincipal; // Enlace al investigador principal
     NodoRevista* revista;                   // Enlace a revista (puede ser nullptr)
     NodoProyecto* proyecto;                 // Enlace a proyecto (puede ser nullptr)
-    ListaAutoresPublicacion autores;        // Autores de esta publicacion
+    ListaCoautores sublistaCoautores;       // Sublista de coautores de esta publicacion
     ListaCitaciones sublistaCitaciones;     // Sublista doble de citaciones
     NodoPublicacion* siguiente;             // Puntero circular al siguiente
 
@@ -72,6 +36,11 @@ private:
     NodoPublicacion* cabeza;
     int tamano;
 
+    // Auxiliares: mover un nodo sin borrarlo y limpiar citas que apuntan a un nodo
+    void desenlazar(NodoPublicacion* nodo);
+    void enlazarOrdenado(NodoPublicacion* nodo);
+    void anularCitasHacia(NodoPublicacion* objetivo);
+
 public:
     ListaPublicaciones();
     ~ListaPublicaciones();
@@ -88,6 +57,10 @@ public:
     void mostrar() const;
     void mostrarConDetalles() const;
 
+    // Llena el enlace "publicacion" de cada investigador y de cada revista
+    // (apunta a la primera publicacion de la lista circular que les pertenece)
+    void actualizarEnlaces(ListaInvestigadores& invs, ListaRevistas& revs) const;
+
     // Métodos para relaciones de
     void mostrarPublicacionesDeProyecto(const std::string& idProy) const;
 
@@ -97,7 +70,7 @@ public:
 
     // Metodos para agregar citas a una publicacion
     bool agregarCitaAPublicacion(const std::string& idPub, const std::string& idCita,
-                                 int anioCita, const std::string& pubCit, const std::string& autCit);
+                                 int anioCita, NodoPublicacion* pubCitante, NodoInvestigador* autCitante);
 
     // Validaciones y utilidades
     static bool esTipoValido(const std::string& t);

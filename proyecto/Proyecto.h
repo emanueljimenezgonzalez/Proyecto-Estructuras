@@ -28,6 +28,10 @@ private:
     NodoProyecto* cola;
     int tamano;
 
+    // Auxiliares: mover un nodo sin borrarlo (mantiene validos los punteros de otras listas)
+    void desenlazar(NodoProyecto* nodo);
+    void enlazarOrdenado(NodoProyecto* nodo);
+
 public:
     ListaProyectos();
     ~ListaProyectos();

@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 
+struct NodoPublicacion;   // forward declaration
+
 // Nodo de la Lista Simple de Revistas Científicas
 struct NodoRevista {
     std::string idRevista;
@@ -9,12 +11,14 @@ struct NodoRevista {
     std::string pais;
     double factorImpacto;
     std::string cuartil; // Q1, Q2, Q3, Q4
+    NodoPublicacion* publicacion;     // Enlace a una publicacion de la revista (1:N)
     NodoRevista* siguiente;
 
     NodoRevista(const std::string& id, const std::string& nom, const std::string& ed,
                 const std::string& p, double fi, const std::string& q)
         : idRevista(id), nombre(nom), editorial(ed), pais(p),
-          factorImpacto(fi), cuartil(q), siguiente(nullptr) {}
+          factorImpacto(fi), cuartil(q),
+          publicacion(nullptr), siguiente(nullptr) {}
 };
 
 // Lista Simple de Revistas Científicas
@@ -23,6 +27,10 @@ class ListaRevistas {
 private:
     NodoRevista* cabeza;
     int tamano;
+
+    // Auxiliares: mover un nodo sin borrarlo (mantiene validos los punteros de otras listas)
+    void desenlazar(NodoRevista* nodo);
+    void enlazarOrdenado(NodoRevista* nodo);
 
 public:
     ListaRevistas();

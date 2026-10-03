@@ -67,6 +67,79 @@ SistemaAcademico::SistemaAcademico() {
 
 SistemaAcademico::~SistemaAcademico() {}
 
+void SistemaAcademico::sincronizar() {
+    MetricasAcademicas::actualizarIndicesHTodos(listaInvestigadores, listaPublicaciones);
+    listaPublicaciones.actualizarEnlaces(listaInvestigadores, listaRevistas);
+}
+
+void SistemaAcademico::limpiarReferenciasInvestigador(NodoInvestigador* inv) {
+    NodoProyecto* proy = listaProyectos.getCabeza();
+    while (proy != nullptr) {
+        if (proy->investigadorResponsable == inv) proy->investigadorResponsable = nullptr;
+        proy = proy->siguiente;
+    }
+    if (listaPublicaciones.getCabeza() == nullptr) return;
+    NodoPublicacion* pub = listaPublicaciones.getCabeza();
+    do {
+        if (pub->investigadorPrincipal == inv) pub->investigadorPrincipal = nullptr;
+        NodoCitacion* c = pub->sublistaCitaciones.getCabeza();
+        while (c != nullptr) {
+            if (c->autorCitante == inv) c->autorCitante = nullptr;
+            c = c->siguiente;
+        }
+        pub = pub->siguiente;
+    } while (pub != listaPublicaciones.getCabeza());
+}
+
+void SistemaAcademico::limpiarReferenciasUniversidad(NodoUniversidad* uni) {
+    NodoInvestigador* inv = listaInvestigadores.getCabeza();
+    while (inv != nullptr) {
+        if (inv->universidad == uni) inv->universidad = nullptr;
+        NodoCoautor* co = inv->sublistaCoautores.getCabeza();
+        while (co != nullptr) {
+            if (co->universidad == uni) co->universidad = nullptr;
+            co = co->siguiente;
+        }
+        inv = inv->siguiente;
+    }
+    if (listaPublicaciones.getCabeza() == nullptr) return;
+    NodoPublicacion* pub = listaPublicaciones.getCabeza();
+    do {
+        NodoCoautor* co = pub->sublistaCoautores.getCabeza();
+        while (co != nullptr) {
+            if (co->universidad == uni) co->universidad = nullptr;
+            co = co->siguiente;
+        }
+        pub = pub->siguiente;
+    } while (pub != listaPublicaciones.getCabeza());
+}
+
+void SistemaAcademico::limpiarReferenciasArea(NodoArea* ar) {
+    NodoInvestigador* inv = listaInvestigadores.getCabeza();
+    while (inv != nullptr) {
+        if (inv->area == ar) inv->area = nullptr;
+        inv = inv->siguiente;
+    }
+}
+
+void SistemaAcademico::limpiarReferenciasRevista(NodoRevista* rev) {
+    if (listaPublicaciones.getCabeza() == nullptr) return;
+    NodoPublicacion* pub = listaPublicaciones.getCabeza();
+    do {
+        if (pub->revista == rev) pub->revista = nullptr;
+        pub = pub->siguiente;
+    } while (pub != listaPublicaciones.getCabeza());
+}
+
+void SistemaAcademico::limpiarReferenciasProyecto(NodoProyecto* proy) {
+    if (listaPublicaciones.getCabeza() == nullptr) return;
+    NodoPublicacion* pub = listaPublicaciones.getCabeza();
+    do {
+        if (pub->proyecto == proy) pub->proyecto = nullptr;
+        pub = pub->siguiente;
+    } while (pub != listaPublicaciones.getCabeza());
+}
+
 void SistemaAcademico::precargarDatos() {
     std::cout << "[SISTEMA] Iniciando precarga de datos academicos...\n";
 
@@ -112,16 +185,16 @@ void SistemaAcademico::precargarDatos() {
     NodoInvestigador* inv5 = listaInvestigadores.buscarPorId("5");
 
     if (inv1) {
-        inv1->sublistaCoautores.insertar("101", "Luis Solis", "UCR", 3);
-        inv1->sublistaCoautores.insertar("102", "Sara Mora", "TEC", 5);
+        inv1->sublistaCoautores.insertar("101", "Luis Solis", uUcr, 3);
+        inv1->sublistaCoautores.insertar("102", "Sara Mora", uTec, 5);
     }
     if (inv3) {
-        inv3->sublistaCoautores.insertar("103", "Pedro Picapiedra", "UNA", 2);
-        inv3->sublistaCoautores.insertar("104", "Rocio Perez", "TEC", 4);
-        inv3->sublistaCoautores.insertar("105", "Marta Vega", "MIT", 1);
+        inv3->sublistaCoautores.insertar("103", "Pedro Picapiedra", listaUniversidades.buscarPorId("3"), 2);
+        inv3->sublistaCoautores.insertar("104", "Rocio Perez", uTec, 4);
+        inv3->sublistaCoautores.insertar("105", "Marta Vega", uMit, 1);
     }
     if (inv5) {
-        inv5->sublistaCoautores.insertar("106", "Albert Einstein", "Princeton", 10);
+        inv5->sublistaCoautores.insertar("106", "Albert Einstein", listaUniversidades.buscarPorId("5"), 10);
     }
 
     // ================================================================
@@ -189,23 +262,23 @@ void SistemaAcademico::precargarDatos() {
     listaPublicaciones.agregarCoautorAPublicacion("PUB07", inv5, "106");
     listaPublicaciones.agregarCoautorAPublicacion("PUB10", inv5, "106");
 
-    listaPublicaciones.agregarCitaAPublicacion("PUB01", "CIT01", 2021, "Trabajo relacionado 1", "Autor 1");
-    listaPublicaciones.agregarCitaAPublicacion("PUB01", "CIT02", 2022, "Trabajo relacionado 2", "Autor 2");
-    listaPublicaciones.agregarCitaAPublicacion("PUB02", "CIT03", 2021, "Trabajo relacionado 3", "Autor 3");
-    listaPublicaciones.agregarCitaAPublicacion("PUB03", "CIT04", 2022, "Trabajo relacionado 4", "Autor 4");
-    listaPublicaciones.agregarCitaAPublicacion("PUB03", "CIT05", 2023, "Trabajo relacionado 5", "Autor 5");
-    listaPublicaciones.agregarCitaAPublicacion("PUB05", "CIT06", 2023, "Trabajo relacionado 6", "Autor 6");
-    listaPublicaciones.agregarCitaAPublicacion("PUB06", "CIT07", 2023, "Trabajo relacionado 7", "Autor 7");
-    listaPublicaciones.agregarCitaAPublicacion("PUB06", "CIT08", 2024, "Trabajo relacionado 8", "Autor 8");
-    listaPublicaciones.agregarCitaAPublicacion("PUB07", "CIT09", 2024, "Trabajo relacionado 9", "Autor 9");
-    listaPublicaciones.agregarCitaAPublicacion("PUB08", "CIT10", 2024, "Trabajo relacionado 10", "Autor 10");
-    listaPublicaciones.agregarCitaAPublicacion("PUB09", "CIT11", 2025, "Trabajo relacionado 11", "Autor 11");
-    listaPublicaciones.agregarCitaAPublicacion("PUB10", "CIT12", 2025, "Trabajo relacionado 12", "Autor 12");
-    listaPublicaciones.agregarCitaAPublicacion("PUB11", "CIT13", 2025, "Trabajo relacionado 13", "Autor 13");
-    listaPublicaciones.agregarCitaAPublicacion("PUB12", "CIT14", 2026, "Trabajo relacionado 14", "Autor 14");
+    listaPublicaciones.agregarCitaAPublicacion("PUB01", "CIT01", 2021, listaPublicaciones.buscarPorId("PUB02"), inv2);
+    listaPublicaciones.agregarCitaAPublicacion("PUB01", "CIT02", 2022, listaPublicaciones.buscarPorId("PUB05"), inv3);
+    listaPublicaciones.agregarCitaAPublicacion("PUB02", "CIT03", 2021, listaPublicaciones.buscarPorId("PUB03"), inv2);
+    listaPublicaciones.agregarCitaAPublicacion("PUB03", "CIT04", 2022, listaPublicaciones.buscarPorId("PUB04"), inv4);
+    listaPublicaciones.agregarCitaAPublicacion("PUB03", "CIT05", 2023, listaPublicaciones.buscarPorId("PUB05"), inv3);
+    listaPublicaciones.agregarCitaAPublicacion("PUB05", "CIT06", 2023, listaPublicaciones.buscarPorId("PUB06"), inv4);
+    listaPublicaciones.agregarCitaAPublicacion("PUB06", "CIT07", 2023, listaPublicaciones.buscarPorId("PUB07"), inv5);
+    listaPublicaciones.agregarCitaAPublicacion("PUB06", "CIT08", 2024, listaPublicaciones.buscarPorId("PUB08"), inv1);
+    listaPublicaciones.agregarCitaAPublicacion("PUB07", "CIT09", 2024, listaPublicaciones.buscarPorId("PUB09"), inv2);
+    listaPublicaciones.agregarCitaAPublicacion("PUB08", "CIT10", 2024, listaPublicaciones.buscarPorId("PUB10"), inv5);
+    listaPublicaciones.agregarCitaAPublicacion("PUB09", "CIT11", 2025, listaPublicaciones.buscarPorId("PUB11"), inv3);
+    listaPublicaciones.agregarCitaAPublicacion("PUB10", "CIT12", 2025, listaPublicaciones.buscarPorId("PUB12"), inv4);
+    listaPublicaciones.agregarCitaAPublicacion("PUB11", "CIT13", 2025, listaPublicaciones.buscarPorId("PUB01"), inv1);
+    listaPublicaciones.agregarCitaAPublicacion("PUB12", "CIT14", 2026, listaPublicaciones.buscarPorId("PUB02"), inv2);
 
     // Calculo de H a partir de las publicaciones, en lugar de dejarlo fijo.
-    MetricasAcademicas::actualizarIndicesHTodos(listaInvestigadores, listaPublicaciones);
+    sincronizar();
 
     std::cout << "[SISTEMA] Precarga completada. Se cargaron los datos iniciales y las relaciones del sistema.\n";
 }
@@ -273,9 +346,10 @@ void SistemaAcademico::menuPublicaciones() {
         std::cout << "  5. Mostrar todas las publicaciones\n";
         std::cout << "  6. Mostrar publicaciones con detalle completo (incluye autores y citaciones)\n";
         std::cout << "  7. Agregar coautor a una publicacion\n";
+        std::cout << "  8. Buscar coautor dentro de una publicacion\n";
         std::cout << "  0. Volver al menu principal\n";
         std::cout << "--------------------------------------------------------------------------------\n";
-        op = leerEntero("Seleccione una opcion [0-7]: ");
+        op = leerEntero("Seleccione una opcion [0-8]: ");
 
         if (op == 1) {
             std::cout << "\n--- INSERTAR PUBLICACION ---\n";
@@ -304,7 +378,7 @@ void SistemaAcademico::menuPublicaciones() {
 
             if (listaPublicaciones.insertarOrdenadoPorAnio(id, tit, anio, tipo, citas, doi, inv, rev, proy)) {
                 std::cout << "  [EXITO] Publicacion insertada correctamente en la lista circular.\n";
-                MetricasAcademicas::actualizarIndicesHTodos(listaInvestigadores, listaPublicaciones);
+                sincronizar();
             }
         } else if (op == 2) {
             std::string id = leerLinea("Ingrese ID de la publicacion a buscar: ");
@@ -325,7 +399,7 @@ void SistemaAcademico::menuPublicaciones() {
                 std::cout << "  [ERROR] No se encontro la publicacion con ID: " << id << "\n";
                 continue;
             }
-            std::cout << "  (Deje el campo vacio o valor -1 para conservar el valor actual)\n";
+            std::cout << "  (Deje los textos vacios y escriba -1 en los numeros para conservar el valor actual)\n";
             std::string nuevoTit = leerLinea("Nuevo titulo [" + p->titulo + "]: ");
             int nuevoAnio = leerEntero("Nuevo ano (" + std::to_string(p->anio) + "): ");
             std::string nuevoTipo = leerLinea("Nuevo tipo [" + p->tipo + "]: ");
@@ -335,13 +409,13 @@ void SistemaAcademico::menuPublicaciones() {
             if (listaPublicaciones.modificar(id, nuevoTit, nuevoAnio, nuevoTipo, nuevasCitas, nuevoDoi,
                                              p->investigadorPrincipal, p->revista, p->proyecto)) {
                 std::cout << "  [EXITO] Publicacion modificada exitosamente.\n";
-                MetricasAcademicas::actualizarIndicesHTodos(listaInvestigadores, listaPublicaciones);
+                sincronizar();
             }
         } else if (op == 4) {
             std::string id = leerLinea("Ingrese ID de la publicacion a eliminar (Lista Circular): ");
             if (listaPublicaciones.eliminar(id)) {
                 std::cout << "  [EXITO] Publicacion eliminada de la lista circular correctamente.\n";
-                MetricasAcademicas::actualizarIndicesHTodos(listaInvestigadores, listaPublicaciones);
+                sincronizar();
             } else {
                 std::cout << "  [ERROR] No se encontro la publicacion con ID: " << id << "\n";
             }
@@ -367,6 +441,22 @@ void SistemaAcademico::menuPublicaciones() {
             std::string idCoautor = leerLinea("ID del coautor: ");
             if (listaPublicaciones.agregarCoautorAPublicacion(idPub, invPropietario, idCoautor)) {
                 std::cout << "  [EXITO] Coautor asociado correctamente a la publicacion.\n";
+            }
+        } else if (op == 8) {
+            std::string idPub = leerLinea("ID de la publicacion: ");
+            NodoPublicacion* pub = listaPublicaciones.buscarPorId(idPub);
+            if (pub == nullptr) {
+                std::cout << "  [ERROR] Publicacion no encontrada.\n";
+                continue;
+            }
+            std::string idCo = leerLinea("ID del coautor a buscar: ");
+            NodoCoautor* co = pub->sublistaCoautores.buscarPorId(idCo);
+            if (co != nullptr) {
+                std::cout << "  [ENCONTRADO] " << co->nombre << " | Universidad: "
+                          << (co->universidad ? co->universidad->nombre : "N/A")
+                          << " | Pub. conjuntas: " << co->publicacionesConjuntas << "\n";
+            } else {
+                std::cout << "  [ERROR] Ese coautor no esta asociado a la publicacion.\n";
             }
         }
     } while (op != 0);
@@ -399,12 +489,20 @@ void SistemaAcademico::menuCitaciones() {
             }
             std::string idCita = leerLinea("ID de la cita (ej. CIT15): ");
             int anio = leerEntero("Ano de la citacion: ");
-            std::string pubCit = leerLinea("Titulo/Articulo citante: ");
-            std::string autCit = leerLinea("Autor(es) citante(s): ");
+            std::string idPubCit = leerLinea("ID de la publicacion citante: ");
+            NodoPublicacion* pubCit = listaPublicaciones.buscarPorId(idPubCit);
+            if (pubCit == nullptr) {
+                std::cout << "  [AVISO] No se encontro la publicacion citante. Se asignara nullptr.\n";
+            }
+            std::string idAutCit = leerLinea("ID del investigador citante: ");
+            NodoInvestigador* autCit = listaInvestigadores.buscarPorId(idAutCit);
+            if (autCit == nullptr) {
+                std::cout << "  [AVISO] No se encontro el investigador citante. Se asignara nullptr.\n";
+            }
 
             if (listaPublicaciones.agregarCitaAPublicacion(idPub, idCita, anio, pubCit, autCit)) {
                 std::cout << "  [EXITO] Citacion agregada exitosamente a la sublista de " << idPub << ".\n";
-                MetricasAcademicas::actualizarIndicesHTodos(listaInvestigadores, listaPublicaciones);
+                sincronizar();
             }
         } else if (op == 2) {
             std::string idPub = leerLinea("ID de la publicacion: ");
@@ -417,7 +515,8 @@ void SistemaAcademico::menuCitaciones() {
             NodoCitacion* c = pub->sublistaCitaciones.buscarPorId(idCita);
             if (c != nullptr) {
                 std::cout << "  [ENCONTRADA] Cita " << c->idCita << " (" << c->anio << "): \""
-                          << c->publicacionCitante << "\" por " << c->autorCitante << "\n";
+                          << (c->publicacionCitante ? c->publicacionCitante->titulo : "N/A") << "\" por "
+                          << (c->autorCitante ? c->autorCitante->nombreCompleto : "N/A") << "\n";
             } else {
                 std::cout << "  [ERROR] No se encontro la cita en esta publicacion.\n";
             }
@@ -434,9 +533,11 @@ void SistemaAcademico::menuCitaciones() {
                 std::cout << "  [ERROR] No se encontro la cita.\n";
                 continue;
             }
-            int nuevoAnio = leerEntero("Nuevo ano: ");
-            std::string nuevaPub = leerLinea("Nuevo titulo citante: ");
-            std::string nuevoAut = leerLinea("Nuevo autor citante: ");
+            int nuevoAnio = leerEntero("Nuevo ano (-1 conserva): ");
+            std::string idNuevaPub = leerLinea("ID de la nueva publicacion citante (vacio para conservar): ");
+            NodoPublicacion* nuevaPub = idNuevaPub.empty() ? nullptr : listaPublicaciones.buscarPorId(idNuevaPub);
+            std::string idNuevoAut = leerLinea("ID del nuevo investigador citante (vacio para conservar): ");
+            NodoInvestigador* nuevoAut = idNuevoAut.empty() ? nullptr : listaInvestigadores.buscarPorId(idNuevoAut);
             if (pub->sublistaCitaciones.modificar(idCita, nuevoAnio, nuevaPub, nuevoAut)) {
                 std::cout << "  [EXITO] Citacion modificada con exito.\n";
             }
@@ -451,7 +552,7 @@ void SistemaAcademico::menuCitaciones() {
             if (pub->sublistaCitaciones.eliminar(idCita)) {
                 std::cout << "  [EXITO] Citacion eliminada de la sublista doble.\n";
                 if (pub->cantidadCitas > 0) pub->cantidadCitas--;
-                MetricasAcademicas::actualizarIndicesHTodos(listaInvestigadores, listaPublicaciones);
+                sincronizar();
             } else {
                 std::cout << "  [ERROR] No se encontro la cita.\n";
             }
@@ -496,7 +597,7 @@ void SistemaAcademico::menuMetricas() {
         } else if (op == 2) {
             MetricasAcademicas::mostrarTodasLasMetricas(listaInvestigadores, listaPublicaciones);
         } else if (op == 3) {
-            MetricasAcademicas::actualizarIndicesHTodos(listaInvestigadores, listaPublicaciones);
+            sincronizar();
             std::cout << "  [EXITO] Indices H recalculados y sincronizados correctamente.\n";
         } else if (op == 4) {
             ejecutarPruebaEjemploIndiceH();
@@ -674,9 +775,10 @@ void SistemaAcademico::menuInvestigadores() {
         std::cout << "  5. Mostrar investigadores (resumen tabular)\n";
         std::cout << "  6. Mostrar investigadores con detalle completo de coautores\n";
         std::cout << "  7. Agregar coautor a la red de un investigador\n";
+        std::cout << "  8. Buscar coautor en la red de un investigador\n";
         std::cout << "  0. Volver al menu principal\n";
         std::cout << "--------------------------------------------------------------------------------\n";
-        op = leerEntero("Seleccione una opcion [0-7]: ");
+        op = leerEntero("Seleccione una opcion [0-8]: ");
 
         if (op == 1) {
             std::string id = leerLinea("ID del investigador (ej. 6): ");
@@ -721,7 +823,10 @@ void SistemaAcademico::menuInvestigadores() {
             }
         } else if (op == 4) {
             std::string id = leerLinea("ID del investigador a eliminar (Lista Simple): ");
+            NodoInvestigador* invDel = listaInvestigadores.buscarPorId(id);
+            if (invDel != nullptr) limpiarReferenciasInvestigador(invDel);
             if (listaInvestigadores.eliminar(id)) {
+                sincronizar();
                 std::cout << "  [EXITO] Investigador eliminado de la lista simple.\n";
             } else {
                 std::cout << "  [ERROR] No se encontro el investigador con ID: " << id << "\n";
@@ -739,10 +844,27 @@ void SistemaAcademico::menuInvestigadores() {
             }
             std::string idCo = leerLinea("ID del coautor (ej. 107): ");
             std::string nomCo = leerLinea("Nombre del coautor: ");
-            std::string uniCo = leerLinea("Universidad del coautor: ");
+            std::string idUniCo = leerLinea("ID de la universidad del coautor: ");
+            NodoUniversidad* uniCo = listaUniversidades.buscarPorId(idUniCo);
             int pubC = leerEntero("Cantidad de publicaciones conjuntas: ");
             if (inv->sublistaCoautores.insertar(idCo, nomCo, uniCo, pubC)) {
                 std::cout << "  [EXITO] Coautor agregado a la red de " << inv->nombreCompleto << ".\n";
+            }
+        } else if (op == 8) {
+            std::string idInv = leerLinea("ID del investigador: ");
+            NodoInvestigador* inv = listaInvestigadores.buscarPorId(idInv);
+            if (inv == nullptr) {
+                std::cout << "  [ERROR] Investigador no encontrado.\n";
+                continue;
+            }
+            std::string idCo = leerLinea("ID del coautor a buscar: ");
+            NodoCoautor* co = inv->sublistaCoautores.buscarPorId(idCo);
+            if (co != nullptr) {
+                std::cout << "  [ENCONTRADO] " << co->nombre << " | Universidad: "
+                          << (co->universidad ? co->universidad->nombre : "N/A")
+                          << " | Pub. conjuntas: " << co->publicacionesConjuntas << "\n";
+            } else {
+                std::cout << "  [ERROR] Ese coautor no esta en la red del investigador.\n";
             }
         }
     } while (op != 0);
@@ -788,12 +910,14 @@ void SistemaAcademico::menuUniversidades() {
             }
             std::string nuevoNom = leerLinea("Nuevo nombre [" + u->nombre + "]: ");
             std::string nuevoPais = leerLinea("Nuevo pais [" + u->pais + "]: ");
-            int nuevoRank = leerEntero("Nuevo ranking (" + std::to_string(u->ranking) + "): ");
+            int nuevoRank = leerEntero("Nuevo ranking (-1 conserva) [" + std::to_string(u->ranking) + "]: ");
             if (listaUniversidades.modificar(id, nuevoNom, nuevoPais, nuevoRank)) {
                 std::cout << "  [EXITO] Universidad modificada con exito.\n";
             }
         } else if (op == 4) {
             std::string id = leerLinea("ID de la universidad a eliminar (Lista Doble): ");
+            NodoUniversidad* uniDel = listaUniversidades.buscarPorId(id);
+            if (uniDel != nullptr) limpiarReferenciasUniversidad(uniDel);
             if (listaUniversidades.eliminar(id)) {
                 std::cout << "  [EXITO] Universidad eliminada de la lista doble.\n";
             } else {
@@ -849,6 +973,8 @@ void SistemaAcademico::menuAreas() {
             }
         } else if (op == 4) {
             std::string id = leerLinea("ID del area a eliminar: ");
+            NodoArea* areaDel = listaAreas.buscarPorId(id);
+            if (areaDel != nullptr) limpiarReferenciasArea(areaDel);
             if (listaAreas.eliminar(id)) {
                 std::cout << "  [EXITO] Area eliminada correctamente.\n";
             } else {
@@ -892,6 +1018,7 @@ void SistemaAcademico::menuRevistas() {
             if (r != nullptr) {
                 std::cout << "  [ENCONTRADA] " << r->nombre << " | Editorial: " << r->editorial
                           << " | FI: " << r->factorImpacto << " | Cuartil: " << r->cuartil << "\n";
+                std::cout << "  Publicacion enlazada: " << (r->publicacion ? r->publicacion->titulo : "Ninguna") << "\n";
             } else {
                 std::cout << "  [ERROR] No se encontro la revista con ID: " << id << "\n";
             }
@@ -914,13 +1041,15 @@ void SistemaAcademico::menuRevistas() {
             std::string nuevoNom = leerLinea("Nuevo nombre [" + r->nombre + "]: ");
             std::string nuevaEd = leerLinea("Nueva editorial [" + r->editorial + "]: ");
             std::string nuevoPais = leerLinea("Nuevo pais [" + r->pais + "]: ");
-            double nuevoFI = leerDouble("Nuevo factor de impacto (" + std::to_string(r->factorImpacto) + "): ");
+            double nuevoFI = leerDouble("Nuevo factor de impacto (-1 conserva) [" + std::to_string(r->factorImpacto) + "]: ");
             std::string nuevoQ = leerLinea("Nuevo cuartil [" + r->cuartil + "]: ");
             if (listaRevistas.modificar(id, nuevoNom, nuevaEd, nuevoPais, nuevoFI, nuevoQ)) {
                 std::cout << "  [EXITO] Revista modificada con exito.\n";
             }
         } else if (op == 5) {
             std::string id = leerLinea("ID de la revista a eliminar: ");
+            NodoRevista* revDel = listaRevistas.buscarPorId(id);
+            if (revDel != nullptr) limpiarReferenciasRevista(revDel);
             if (listaRevistas.eliminar(id)) {
                 std::cout << "  [EXITO] Revista eliminada correctamente.\n";
             } else {
@@ -976,14 +1105,16 @@ void SistemaAcademico::menuProyectos() {
                 continue;
             }
             std::string nuevoNom = leerLinea("Nuevo nombre [" + p->nombre + "]: ");
-            double nuevoFin = leerDouble("Nuevo financiamiento: ");
-            int nuevoAIni = leerEntero("Nuevo ano inicio: ");
-            int nuevoAFin = leerEntero("Nuevo ano fin: ");
+            double nuevoFin = leerDouble("Nuevo financiamiento (-1 conserva): ");
+            int nuevoAIni = leerEntero("Nuevo ano inicio (-1 conserva): ");
+            int nuevoAFin = leerEntero("Nuevo ano fin (-1 conserva): ");
             if (listaProyectos.modificar(id, nuevoNom, nuevoFin, nuevoAIni, nuevoAFin, p->investigadorResponsable)) {
                 std::cout << "  [EXITO] Proyecto modificado correctamente.\n";
             }
         } else if (op == 4) {
             std::string id = leerLinea("ID del proyecto a eliminar (Lista Doble): ");
+            NodoProyecto* proyDel = listaProyectos.buscarPorId(id);
+            if (proyDel != nullptr) limpiarReferenciasProyecto(proyDel);
             if (listaProyectos.eliminar(id)) {
                 std::cout << "  [EXITO] Proyecto eliminado de la lista doble exitosamente.\n";
             } else {
